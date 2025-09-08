@@ -172,3 +172,30 @@ La imagen incluye un healthcheck que consulta `http://localhost:3000/`.
 - Montar `baileys_auth` como volumen es imprescindible para no perder la sesión de WhatsApp al recrear el contenedor.
 - Montar `uploads` permite reemplazar el Excel sin reconstruir la imagen.
 - Montar `logs` conserva el historial entre reinicios.
+
+## 🐳 Docker Compose
+
+### Levantar el servicio
+```bash
+docker compose up -d --build
+```
+
+### Ver logs en vivo
+```bash
+docker compose logs -f
+```
+
+### Reiniciar
+```bash
+docker compose restart
+```
+
+### Detener y eliminar contenedor
+```bash
+docker compose down
+```
+
+### Limpiar volúmenes (atención: borra sesiones y archivos)
+```bash
+docker compose down -v
+```
