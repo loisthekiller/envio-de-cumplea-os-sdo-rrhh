@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sanatorio del Oeste - Envio de Cumpleaños</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"/>
+  <style>  
+    body {
+      font-family: 'Nunito', sans-serif;
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    .bienvenida {
+      background: linear-gradient(to bottom, #155e63, #0b4f6c);
+      color: white;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+    .logo {
+      height: 30px;
+      margin-left: 10px;
+    }
+
+    .title {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.7rem;
+      font-weight: 700;
+      gap: 10px;
+    }
+
+    .subtitle {
+      font-size: 1.2rem;
+      color: #cce3e5;
+      margin-bottom: 2rem;
+    }
+
+    .btn-ingresar {
+      padding: 0.5rem 1.5rem;
+      font-size: 1.1rem;
+      font-weight: bold;
+      border-radius: 2rem;
+      background-color: #ffffff;
+      color: #155e63;
+      border: none;
+      transition: all 0.3s;
+    }
+    
+    .btn-ingresar:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .app {
+      display: none;
+      background: linear-gradient(to bottom right, #155e5b, #004080);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+      position: relative;
+    }
+
+    .app-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .row {
+      margin-bottom: 1.5rem;
+    }
+
+    .card {
+      border-radius: 1.5rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      background-color: rgba(255, 255, 255, 0.95);
+    }
+
+    .card-header {
+      font-weight: bold;
+      font-size: 1.25rem;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .bg-primary {
+      background-color: #0076c8 !important;
+    }
+
+    .bg-success {
+      background-color: #2ba7a0 !important;
+    }
+
+    .form-control {
+      border-radius: 1rem;
+      border: 2px solid #cce3e5;
+      transition: all 0.3s;
+      background-color: #f8fafc;
+    }
+    
+    .form-control:focus {
+      border-color: #2ba7a0;
+      box-shadow: 0 0 0 0.25rem rgba(43, 167, 160, 0.25);
+      background-color: white;
+    }
+
+    .btn {
+      border-radius: 2rem;
+      padding: 0.5rem 1.5rem;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .loader {
+      display: none;
+      width: 3rem;
+      height: 3rem;
+      border: 5px solid #fff;
+      border-top: 5px solid #2ba7a0;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 1rem auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    footer {
+      font-size: 0.9rem;
+      color: #e5f6fa;
+      margin-top: 2rem;
+      text-align: center;
+    }
+    
+    .btn-volver {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background-color: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+      z-index: 1000;
+    }
+    
+    .btn-volver:hover {
+      background-color: rgba(255, 255, 255, 0.3);
+      transform: scale(1.1);
+    }
+    
+    textarea.form-control {
+      min-height: 150px;
+      resize: vertical;
+    }
+
+    /* Estilos para la lista de destinatarios con scroll */
+    #lista-destinatarios {
+      max-height: 350px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    /* Personalizar la barra de desplazamiento */
+    #lista-destinatarios::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    #lista-destinatarios::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+
+    #lista-destinatarios::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 10px;
+    }
+
+    #lista-destinatarios::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+
+    /* Alinear las columnas con la misma altura */
+    .col-md-6 {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .col-md-6 .card {
+      flex: 1;
+    }
+
+    /* Asegurar que las tarjetas principales tengan la misma altura */
+    .row.justify-content-center {
+      align-items: stretch;
+    }
+  </style>
+</head>
+<body>
+  <div class="bienvenida" id="pantalla-bienvenida">
+    <div class="title">
+      <i class="bi bi-hospital"></i> Sanatorio del Oeste
+      <img src="static/Logo.png" alt="Logo" width="50" onerror="this.style.display='none'">
+    </div>
+    <div class="subtitle">Departamento de Recusos Humanos</div>
+    <button class="btn-ingresar" onclick="mostrarApp()">Ingresar</button>
+  </div>
+
+  <div class="app" id="pantalla-app">
+    <div class="app-container">
+      <button class="btn-volver" onclick="volverBienvenida()">
+        <i class="bi bi-arrow-left"></i>
+      </button>
+      
+      <div class="text-center mb-4">
+        <h2 class="fw-bold text-white d-flex align-items-center justify-content-center gap-3">
+          <i class="bi bi-hospital"></i> Sanatorio del Oeste
+           <img src="static/Logo.png" alt="Logo" width="50" onerror="this.style.display='none'">
+        </h2>
+        <h5 class="text-white-50">Departamento de Recuros Humanos</h5>
+      </div>
+
+      <div class="row justify-content-center">
+        <div class="col-md-6">
+          <div class="card mb-4">
+            <div class="card-header bg-primary text-white rounded-top-4">
+              <i class="bi bi-people-fill"></i> Destinatarios
+            </div>
+            <div class="card-body">
+              <form action="/upload" method="post" enctype="multipart/form-data" onsubmit="document.getElementById('loader-upload').style.display = 'block'">
+                <div class="mb-3">
+                  <label for="excel" class="form-label">Seleccionar archivo Excel</label>
+                  <div class="position-relative text-start">
+                    <input type="file" name="excel" id="excel" class="form-control rounded-pill ps-5" accept=".xlsx" required onchange="mostrarIconoConfirmacion()">
+                    <i class="bi bi-paperclip position-absolute top-50 start-0 translate-middle-y ms-3 text-secondary"></i>
+                    <img id="icono-confirmacion" src="static/archivo-ok.png" alt="Archivo cargado" width="28" class="position-absolute top-50 end-0 translate-middle-y me-3 d-none">
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-primary">📥 Cargar</button>
+                <div id="loader-upload" class="loader"></div>
+              </form>
+              
+              <!-- Lista de destinatarios -->
+              <div class="mt-4 border-top pt-3">
+                <h6 class="fw-bold mb-3">
+                  <i class="bi bi-list-ul"></i> Lista de Contactos
+                </h6>
+                <div id="lista-destinatarios" class="text-muted">
+                  <p>No hay contactos cargados aún.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="card mb-4">
+            <div class="card-header bg-success text-white rounded-top-4">
+              <i class="bi bi-chat-left-text"></i> Enviar mensajes
+            </div>
+            <div class="card-body">
+              <div class="mb-3">
+                <p class="text-muted">Haga clic en el botón para enviar los mensajes a los contactos cargados.</p>
+              </div>
+              <div class="mb-4">
+                <p class="mb-2"><i class="bi bi-eye"></i> <strong>Vista previa del mensaje:</strong></p>
+                <div class="d-flex align-items-start p-3 border rounded bg-light">
+                  <img src="/foto.png" alt="Imagen adjunta" class="img-fluid rounded me-3" style="max-width: 100px;">
+                  <div style="font-size: 0.9rem; line-height: 1.4;">
+                    <p class="mb-2">🎉 ¡Buenos días, <span class="fw-bold text-primary">[NOMBRE]</span>!</p>
+                    <p class="mb-2">Desde el Sanatorio del Oeste 🏥 queremos desearte un muy feliz cumpleaños 🎉💐.</p>
+                    <p class="mb-2">Para celebrar tu mes especial, te enviamos dos obsequios exclusivos:</p>
+                    <p class="mb-2">🎬 Voucher para el cine Hoyts (<span class="fw-bold text-danger">[CODIGO]</span>) – recordá revisar la fecha de vencimiento (<span class="fw-bold text-warning">[VENCIMIENTO]</span>) y el modo de canje.</p>
+                    <p class="mb-2">💆🏻 Voucher para una limpieza facial, para que disfrutes un momento de relajación y cuidado personal.</p>
+                    <p class="mb-2">¡Esperamos que los disfrutes y tengas un cumpleaños inolvidable!</p>
+                    <p class="mb-0">Atte: Recursos Humanos</p>
+                  </div>
+                </div>
+              </div>
+              <button id="btn-enviar" class="btn btn-success">📤 Enviar mensajes</button>
+              <div id="loader-send" class="loader"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer>
+        <p><i class="bi bi-envelope-paper"></i> Envío de Cumpleaños- Sanatorio Del Oeste</p>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    function mostrarApp() {
+      document.getElementById('pantalla-bienvenida').style.display = 'none';
+      document.getElementById('pantalla-app').style.display = 'block';
+    }
+    
+    function volverBienvenida() {
+      document.getElementById('pantalla-app').style.display = 'none';
+      document.getElementById('pantalla-bienvenida').style.display = 'flex';
+    }
+
+    function mostrarIconoConfirmacion() {
+      document.getElementById('icono-confirmacion').classList.remove('d-none');
+    }
+
+
+
+    function manejarRespuestaEnvios(data) {
+      if (data.success) {
+        const alerta = document.createElement('div');
+        alerta.className = 'alert alert-success fade-in position-fixed top-0 start-50 translate-middle-x mt-4';
+        alerta.style.zIndex = 9999;
+        alerta.style.minWidth = '300px';
+        alerta.innerHTML = `<i class='bi bi-check-circle-fill me-2'></i>${data.message}`;
+        document.body.appendChild(alerta);
+        setTimeout(() => {
+          alerta.remove();
+        }, 3000);
+      } else {
+        const alerta = document.createElement('div');
+        alerta.className = 'alert alert-danger fade-in position-fixed top-0 start-50 translate-middle-x mt-4';
+        alerta.style.zIndex = 9999;
+        alerta.style.minWidth = '300px';
+        alerta.innerHTML = `<i class='bi bi-x-circle-fill me-2'></i>${data.error}`;
+        document.body.appendChild(alerta);
+        setTimeout(() => {
+          alerta.remove();
+        }, 3000);
+      }
+    }
+
+    function mostrarAlertaCargaContactos(data) {
+      const alerta = document.createElement('div');
+      alerta.className = data.success ? 'alert alert-success fade-in position-fixed top-0 start-50 translate-middle-x mt-4' : 'alert alert-danger fade-in position-fixed top-0 start-50 translate-middle-x mt-4';
+      alerta.style.zIndex = 9999;
+      alerta.style.minWidth = '300px';
+      alerta.innerHTML = `<i class='bi bi-check-circle-fill me-2'></i>${data.message}`;
+      document.body.appendChild(alerta);
+      setTimeout(() => {
+        alerta.remove();
+      }, 3000);
+    }
+
+    async function obtenerDestinatarios() {
+      try {
+        const response = await fetch('/destinatarios');
+        const data = await response.json();
+
+        const lista = document.getElementById('lista-destinatarios');
+        if (data.success && data.contactos.length > 0) {
+          lista.innerHTML = '<ul class="list-group">' +
+            data.contactos.map(contacto => `
+              <li class="list-group-item">
+                <strong>${contacto.nombre}</strong> - ${contacto.telefono}
+                <span class="badge bg-${contacto.estado === 'Enviado' ? 'success' : (contacto.estado === 'Pendiente' ? 'secondary' : 'danger')} ms-2">
+                  ${contacto.estado}
+                </span>
+                <br>
+                <small class="text-muted">${contacto.mensaje ? contacto.mensaje : ''}</small>
+              </li>
+            `).join('') + '</ul>';
+        } else {
+          lista.innerHTML = '<p class="text-muted">No hay contactos cargados aún.</p>';
+        }
+      } catch (error) {
+        console.error('Error al obtener destinatarios:', error);
+      }
+    }
+
+    // Función para reiniciar la aplicación a su estado inicial
+    async function reiniciarApp() {
+      // Mostrar la pantalla de bienvenida y ocultar la pantalla de la aplicación
+      document.getElementById('pantalla-app').style.display = 'none';
+      document.getElementById('pantalla-bienvenida').style.display = 'flex';
+      
+      // Reiniciar el formulario de carga de contactos
+      const formulario = document.querySelector('form[action="/upload"]');
+      if (formulario) {
+        formulario.reset();
+      }
+      
+      // Ocultar el icono de confirmación
+      document.getElementById('icono-confirmacion').classList.add('d-none');
+      
+      // Reiniciar la lista de destinatarios
+      document.getElementById('lista-destinatarios').innerHTML = '<p class="text-muted">No hay contactos cargados aún.</p>';
+      
+      // Limpiar datos del servidor
+      try {
+        await fetch('/limpiar-datos', {
+          method: 'POST'
+        });
+      } catch (error) {
+        console.log('Datos limpiados del cliente');
+      }
+    }
+    
+    // Llamar a la función al cargar la página
+    document.addEventListener('DOMContentLoaded', async function() {
+      // Siempre reiniciar la aplicación al cargar la página
+      await reiniciarApp();
+      // No cargar destinatarios automáticamente para empezar limpio
+    });
+
+    document.getElementById('btn-enviar').addEventListener('click', async function() {
+      const loader = document.getElementById('loader-send');
+      loader.style.display = 'block'; // Mostrar el loader
+
+      try {
+        const response = await fetch('/send', {
+          method: 'GET'
+        });
+        const data = await response.json();
+        
+        const alerta = document.createElement('div');
+        alerta.className = 'alert alert-success fade-in position-fixed top-0 start-50 translate-middle-x mt-4';
+        alerta.style.zIndex = 9999;
+        alerta.style.minWidth = '300px';
+        alerta.innerHTML = `<i class='bi bi-check-circle-fill me-2'></i>${data.message}`;
+        document.body.appendChild(alerta);
+        setTimeout(() => {
+          alerta.remove();
+        }, 5000);
+        
+
+        // Actualizar la lista de destinatarios después del envío
+        await obtenerDestinatarios();
+      } catch (error) {
+        console.error('Error al enviar los mensajes:', error);
+        let mensajeError = 'Error al enviar los mensajes.';
+        
+        // Intentar extraer el mensaje de error de la respuesta
+        try {
+          if (error.response) {
+            const errorData = await error.response.json();
+            mensajeError = errorData.message || errorData.error || mensajeError;
+          }
+        } catch (e) {
+          console.error('Error al procesar la respuesta de error:', e);
+        }
+        
+        const alerta = document.createElement('div');
+        alerta.className = 'alert alert-danger fade-in position-fixed top-0 start-50 translate-middle-x mt-4';
+        alerta.style.zIndex = 9999;
+        alerta.style.minWidth = '300px';
+        alerta.innerHTML = `<i class='bi bi-x-circle-fill me-2'></i>${mensajeError}`;
+        document.body.appendChild(alerta);
+        setTimeout(() => {
+          alerta.remove();
+        }, 5000);
+      } finally {
+        loader.style.display = 'none'; // Ocultar el loader
+      }
+    });
+
+    // Interceptar el formulario de carga de contactos
+    document.querySelector('form[action="/upload"]').addEventListener('submit', async function(event) {
+      event.preventDefault();
+      const form = event.target;
+      const formData = new FormData(form);
+      const loader = document.getElementById('loader-upload');
+      loader.style.display = 'block';
+      try {
+        const response = await fetch('/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await response.json();
+        mostrarAlertaCargaContactos(data);
+        obtenerDestinatarios(); // Actualizar la lista de destinatarios
+      } catch (error) {
+        console.error('Error al cargar contactos:', error);
+        mostrarAlertaCargaContactos({ success: false, message: 'Error al cargar contactos.' });
+      } finally {
+        loader.style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>
