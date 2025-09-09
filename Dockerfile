@@ -1,12 +1,21 @@
-# Etapa 1: Dependencias
-FROM node:18-alpine AS deps
+# Etapa 1: Dependencias (usar Node 20 por requisitos de algunas libs)
+FROM node:20-alpine AS deps
 WORKDIR /app
-# Instalar dependencias solo si cambian los manifests
-COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
+# Copiar manifests (lock puede no existir en algunos casos)
+COPY package.json ./
+COPY package-lock.json* ./
+# Intentar instalación limpia; si el lock no coincide o falta, usar npm install como fallback
+RUN set -eux; \
+    if [ -f package-lock.json ]; then \
+      echo "Usando npm ci"; \
+      (npm ci --omit=dev || (echo 'Fallo npm ci, usando npm install' && npm install --omit=dev)); \
+    else \
+      echo "No hay package-lock.json, usando npm install"; \
+      npm install --omit=dev; \
+    fi;
 
-# Etapa 2: Runtime
-FROM node:18-alpine
+# Etapa 2: Runtime minimal
+FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production \
     TZ=America/Argentina/Buenos_Aires
