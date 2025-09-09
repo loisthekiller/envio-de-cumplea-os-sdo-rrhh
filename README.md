@@ -15,8 +15,8 @@ Sistema automatizado para el envío de mensajes de felicitación de cumpleaños 
 ## 🚀 Instalación
 
 ### Requisitos previos
-- Node.js (versión 16 o superior)
-- NPM o Yarn
+- Node.js (versión 20 o superior)
+- NPM
 - Cuenta de WhatsApp para vincular
 
 ### Pasos de instalación
@@ -91,6 +91,15 @@ El archivo Excel debe tener las siguientes columnas:
 - Progreso en tiempo real
 
 ## ⚙️ Configuración
+
+### Variables de entorno soportadas
+| Variable | Descripción | Valor por defecto |
+|----------|-------------|-------------------|
+| PORT | Puerto HTTP de la app | 3000 |
+| HOST | Host bind | localhost |
+| NODE_ENV | Entorno de ejecución | production |
+
+Puedes exportarlas o agregarlas al comando docker / compose.
 
 ### Puerto del servidor
 Modificar en `src/config.js`:
@@ -198,4 +207,24 @@ docker compose down
 ### Limpiar volúmenes (atención: borra sesiones y archivos)
 ```bash
 docker compose down -v
+```
+
+## 🛠️ Solución de problemas
+
+| Problema | Causa común | Solución |
+|----------|-------------|----------|
+| npm ci falla en Docker | package-lock fuera de sync | Ejecutar `npm install`, commitear lock y reconstruir |
+| QR no aparece en contenedor | Falta imprimir en terminal adjunta | Ver logs: `docker compose logs -f` |
+| Sesión WhatsApp se pierde | Volumen `baileys_auth` no montado | Asegurar volumen en docker / compose |
+| Cambié Excel y no refresca | Cache de contactos en memoria | Recargar página (reinicia estado) |
+| Puerto en uso | Otro proceso escucha 3000 | Cambiar mapeo: `-p 4000:3000` |
+
+### Verificar health en Docker
+```bash
+docker inspect --format='{{json .State.Health}}' cumple-app | jq .
+```
+
+### Reconstruir forzando sin cache
+```bash
+docker compose build --no-cache --pull
 ```
