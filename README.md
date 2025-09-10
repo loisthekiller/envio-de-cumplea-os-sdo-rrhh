@@ -1,3 +1,8 @@
+## Imagen de cumpleaños
+
+Para que el sistema funcione correctamente, asegurate de que la imagen de regalo se llame **foto.png** y esté ubicada en la raíz del proyecto.
+
+Si tenés otra imagen, simplemente renombrala a `foto.png` y colócala en la carpeta principal.
 # 🏥 Sistema de Envío de Cumpleaños - Sanatorio del Oeste
 
 Sistema automatizado para el envío de mensajes de felicitación de cumpleaños a empleados del Sanatorio del Oeste a través de WhatsApp.

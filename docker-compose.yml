@@ -1,25 +1,35 @@
-version: '3.9'
+version: "3.9"
+
 services:
   cumple-app:
+    container_name: cumple-app
     image: sanatorio-cumpleanos:latest
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: cumple-app
     restart: unless-stopped
     environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - HOST=0.0.0.0
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      TZ: America/Argentina/Buenos_Aires
     ports:
       - "3000:3000"
     volumes:
       - ./uploads:/app/uploads
-      - ./src/baileys_auth:/app/src/baileys_auth
+      - ./baileys_auth:/app/baileys_auth
       - ./logs:/app/logs
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      # curl es más común que wget en many images; instalamos si falta (alpine ya trae wget pero por claridad usamos wget existente)
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/status" ]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 20s
+    # Pequeño límite de memoria opcional (comentado). Descomentar si deseas.
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 512M
+
+volumes: {}

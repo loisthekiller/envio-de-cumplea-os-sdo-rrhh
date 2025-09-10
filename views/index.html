@@ -214,6 +214,46 @@
     .row.justify-content-center {
       align-items: stretch;
     }
+
+    /* Estilos para la vista previa del mensaje mejorada */
+    .chat-preview {
+      position: relative;
+      max-width: 100%;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .message-bubble {
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .message-bubble:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    /* Animación sutil para las variables */
+    .badge {
+      transition: all 0.3s ease;
+    }
+
+    .badge:hover {
+      transform: scale(1.05);
+    }
+
+    /* Estilo para resaltar elementos importantes */
+    .border-start {
+      border-width: 4px !important;
+    }
+
+    /* Mejora visual para la imagen en la vista previa */
+    .chat-preview img {
+      transition: transform 0.3s ease;
+    }
+
+    .chat-preview img:hover {
+      transform: scale(1.05);
+    }
   </style>
 </head>
 <body>
@@ -279,22 +319,46 @@
               <i class="bi bi-chat-left-text"></i> Enviar mensajes
             </div>
             <div class="card-body">
-              <div class="mb-3">
-                <p class="text-muted">Haga clic en el botón para enviar los mensajes a los contactos cargados.</p>
-              </div>
+              <!-- ...existing code... -->
               <div class="mb-4">
-                <p class="mb-2"><i class="bi bi-eye"></i> <strong>Vista previa del mensaje:</strong></p>
-                <div class="d-flex align-items-start p-3 border rounded bg-light">
-                  <img src="/foto.png" alt="Imagen adjunta" class="img-fluid rounded me-3" style="max-width: 100px;">
-                  <div style="font-size: 0.9rem; line-height: 1.4;">
-                    <p class="mb-2">🎉 ¡Buenos días, <span class="fw-bold text-primary">[NOMBRE]</span>!</p>
-                    <p class="mb-2">Desde el Sanatorio del Oeste 🏥 queremos desearte un muy feliz cumpleaños 🎉💐.</p>
-                    <p class="mb-2">Para celebrar tu mes especial, te enviamos dos obsequios exclusivos:</p>
-                    <p class="mb-2">🎬 Voucher para el cine Hoyts (<span class="fw-bold text-danger">[CODIGO]</span>) – recordá revisar la fecha de vencimiento (<span class="fw-bold text-warning">[VENCIMIENTO]</span>) y el modo de canje.</p>
-                    <p class="mb-2">💆🏻 Voucher para una limpieza facial, para que disfrutes un momento de relajación y cuidado personal.</p>
-                    <p class="mb-2">¡Esperamos que los disfrutes y tengas un cumpleaños inolvidable!</p>
-                    <p class="mb-0">Atte: Recursos Humanos</p>
+                <div class="d-flex align-items-center mb-3">
+                  <i class="bi bi-eye text-primary me-2"></i>
+                  <h6 class="mb-0 fw-bold">Vista previa del mensaje</h6>
+                </div>
+                
+                <!-- Simulación de chat de WhatsApp -->
+                <div class="position-relative">
+                  <div class="chat-preview p-4 border rounded-3 bg-gradient" style="background: linear-gradient(135deg, #e8f5e8 0%, #f0f8ff 100%); border: 2px solid #e3f2fd;">
+                    
+                    <!-- Header del chat simulado -->
+                    <div class="d-flex align-items-center mb-3 pb-2 border-bottom">
+                      <div class="bg-success rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                        <i class="bi bi-hospital text-white"></i>
+                      </div>
+                      <div>
+                        <h6 class="mb-0 fw-bold text-success">Sanatorio del Oeste</h6>
+                        <small class="text-muted">Recursos Humanos</small>
+                      </div>
+                    </div>
+                    
+                    <!-- Mensaje principal -->
+                    <div class="message-bubble bg-white p-4 rounded-3 shadow-sm border text-center">
+                      <img src="/foto-ok.png" alt="Imagen adjunta" class="img-fluid mb-4 mx-auto d-block" style="max-width: 500px; width: 100%; border-radius: 16px; border: 2px solid #e9ecef;">
+                      <div style="font-size: 1.15rem; line-height: 1.7; text-align: left; max-width: 600px; margin: 0 auto;">
+                        <p>¡Hola <b>[NOMBRE]</b>! 🎉</p>
+                        <p>Desde el Sanatorio del Oeste queremos desearte un muy feliz cumpleaños. Para celebrar tu mes especial, te enviamos dos obsequios exclusivos:</p>
+                        <p>🎬 Voucher para el cine Hoyts (<b>[CODIGO]</b>)<br>
+                        📅 Recordá revisar la fecha de vencimiento (<b>[VENCIMIENTO]</b>) y el modo de canje.<br>
+                        💆🏻 Voucher para una limpieza facial, para que disfrutes un momento de relajación y cuidado personal.</p>
+                        <p>¡Esperamos que los disfrutes y tengas un cumpleaños inolvidable!</p>
+                        <p style="font-size:0.95rem;color:#888;">Atte: Departamento de Recursos Humanos<br>Sanatorio del Oeste</p>
+                      </div>
+                    </div>
+                    
                   </div>
+                  
+                  <!-- Indicador de variables -->
+                  <!-- ...existing code... -->
                 </div>
               </div>
               <button id="btn-enviar" class="btn btn-success">📤 Enviar mensajes</button>
