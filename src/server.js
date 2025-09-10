@@ -1,3 +1,29 @@
+const chalk = require('chalk');
+// Función para calcular el resumen
+function calcularResumen(enviados, errores, contactos) {
+  const total = contactos.length || 0;
+  const tasaExito = total > 0 ? Math.round((enviados / total) * 100) : 0;
+  return { enviados, errores, total, tasaExito };
+}
+
+// Función para mostrar el resumen en consola con colores
+function mostrarResumen(resumen) {
+  console.clear();
+  console.log(chalk.bold('📋 RESUMEN ENVÍO\n'));
+
+  console.log(chalk.green(`✔ Enviados: ${resumen.enviados}`));
+  console.log(chalk.red(`✖ Errores: ${resumen.errores}`));
+  console.log(chalk.cyan(`📊 Total: ${resumen.total}`));
+
+  let colorTasa =
+    resumen.tasaExito >= 80
+      ? chalk.green
+      : resumen.tasaExito >= 50
+      ? chalk.yellow
+      : chalk.red;
+
+  console.log(colorTasa(`📈 Tasa de éxito: ${resumen.tasaExito}%`));
+}
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -7,6 +33,25 @@ const { Boom } = require('@hapi/boom');
 const qrcode = require('qrcode-terminal');
 const XLSX = require('xlsx');
 const { logWhatsApp, logExcel, logMessage, logError } = require('./logger');
+// Filtrar logs innecesarios en consola
+const originalConsoleLog = console.log;
+console.log = function(...args) {
+  // Filtrar todos los logs de Baileys
+  if (typeof args[0] === 'string' && args[0].includes('baileys')) return;
+  if (typeof args[0] === 'object' && args[0]?.class === 'baileys') return;
+  
+  // Filtrar mensajes JSON que contengan datos técnicos
+  if (typeof args[0] === 'string' && args[0].startsWith('{') && args[0].includes('"level"')) return;
+  
+  // Filtrar logs de conexión muy detallados
+  if (typeof args[0] === 'string' && 
+    (args[0].includes('created new mutex') || 
+     args[0].includes('processing sender keys') || 
+     args[0].includes('fetching sender key'))) return;
+  
+  // Permitir logs importantes y mensajes del sistema
+  originalConsoleLog.apply(console, args);
+};
 const config = require('./config');
 
 const app = express();
@@ -53,6 +98,11 @@ app.get('/foto.png', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'foto.png'));
 });
 
+// Ruta para servir la nueva imagen de cumpleaños
+app.get('/foto-ok.png', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'foto-ok.png'));
+});
+
 // Ruta para obtener el código QR
 app.get('/qr', (req, res) => {
   if (currentQR) {
@@ -70,110 +120,83 @@ let sock;
 let isClientReady = false;
 let contactos = [];
 let currentQR = null;
+let lastError = null;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 10;
+let reconnectDelay = 3000;
 
 async function initBaileys() {
-    try {
-        logWhatsApp('Iniciando conexión con WhatsApp');
-        const { state, saveCreds } = await useMultiFileAuthState('baileys_auth');
+  try {
+    logWhatsApp('Iniciando conexión con WhatsApp');
+    const { state, saveCreds } = await useMultiFileAuthState('baileys_auth');
 
-        sock = makeWASocket({
-            auth: state,
-            printQRInTerminal: false,
-            syncFullHistory: false,
-            browser: ['WhatsApp Bot', 'Chrome', '4.0.0'],
-            markOnlineOnConnect: true
-        });
+    sock = makeWASocket({
+      auth: state,
+      printQRInTerminal: false,
+      syncFullHistory: false,
+      browser: ['WhatsApp Bot', 'Chrome', '4.0.0'],
+      markOnlineOnConnect: true
+    });
 
-        // Manejo de conexión
-        sock.ev.on('connection.update', (update) => {
-            const { connection, lastDisconnect, qr } = update;
+    sock.ev.on('connection.update', (update) => {
+      const { connection, lastDisconnect, qr } = update;
 
-            if (qr) {
-                console.log('\n🔄 NUEVO CÓDIGO QR DISPONIBLE');
-                console.log('═'.repeat(60));
-                console.log('📱 Abre WhatsApp > Dispositivos vinculados > Vincular dispositivo');
-                console.log('📷 Escanea el código QR que aparece a continuación:');
-                console.log('═'.repeat(60));
-                qrcode.generate(qr, { small: true });
-                console.log('═'.repeat(60));
-                currentQR = qr;
-                logWhatsApp('Código QR generado', { timestamp: new Date().toISOString() });
-            }
+      if (qr) {
+        currentQR = qr;
+        logWhatsApp('Código QR generado', { timestamp: new Date().toISOString() });
+        qrcode.generate(qr, { small: true });
+      }
 
-            if (connection === 'close') {
-                const statusCode = (lastDisconnect?.error)?.output?.statusCode;
-                const reason = DisconnectReason[statusCode];
-                
-                console.log('\n❌ CONEXIÓN WHATSAPP CERRADA');
-                console.log('═'.repeat(60));
-                console.log('📱 Estado WhatsApp: Desconectado');
-                console.log('🔍 Razón:', reason || 'Desconocida');
-                console.log('🔢 Código:', statusCode || 'N/A');
-                console.log('═'.repeat(60));
-                
-                logWhatsApp('Conexión cerrada', { reason, statusCode });
-                
-                isClientReady = false;
-                currentQR = null;
+      if (connection === 'close') {
+        const statusCode = (lastDisconnect?.error)?.output?.statusCode;
+        const reason = DisconnectReason[statusCode];
+        isClientReady = false;
+        currentQR = null;
+        lastError = reason || 'Desconocida';
+        logWhatsApp('Conexión cerrada', { reason, statusCode });
 
-                if (statusCode === DisconnectReason.loggedOut) {
-                    console.log('🚪 Sesión cerrada. Se requiere nuevo escaneo QR.');
-                    logWhatsApp('Sesión cerrada, requiere nuevo QR');
-                } else {
-                    console.log('🔄 Reintentando conexión automáticamente...');
-                    logWhatsApp('Reintentando conexión...');
-                    setTimeout(() => initBaileys(), 3000);
-                }
-            } else if (connection === 'open') {
-                console.log('\n✅ WHATSAPP CONECTADO EXITOSAMENTE');
-                console.log('═'.repeat(60));
-                console.log('📱 Estado WhatsApp: Conectado');
-                console.log('🕐 Hora conexión:', new Date().toLocaleTimeString('es-AR'));
-                console.log('🌐 Sistema listo en: http://localhost:' + port);
-                console.log('═'.repeat(60));
-                
-                logWhatsApp('Conexión establecida exitosamente', { 
-                    timestamp: new Date().toISOString(),
-                    port: port 
-                });
-                isClientReady = true;
-                currentQR = null;
+        reconnectAttempts++;
+        if (reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
+          console.log('❌ Se alcanzó el máximo de intentos de reconexión.');
+          logError('Máximo de intentos de reconexión alcanzado');
+          return;
+        }
+        reconnectDelay = Math.min(reconnectDelay * 2, 60000); // backoff exponencial hasta 1 min
+        setTimeout(() => initBaileys(), reconnectDelay);
+      } else if (connection === 'open') {
+        isClientReady = true;
+        currentQR = null;
+        lastError = null;
+        reconnectAttempts = 0;
+        reconnectDelay = 3000;
+        logWhatsApp('Conexión establecida exitosamente', { timestamp: new Date().toISOString(), port });
+        sock.sendMessage("status@broadcast", { text: "🏥 Bot del Sanatorio del Oeste conectado exitosamente!" })
+          .then(() => logWhatsApp('Mensaje de prueba enviado'))
+          .catch(err => logError('Error al enviar mensaje de prueba', err));
+      }
+    });
 
-                // Mensaje de prueba para verificar la conexión
-                sock.sendMessage("status@broadcast", { 
-                    text: "🏥 Bot del Sanatorio del Oeste conectado exitosamente!" 
-                }).then(() => {
-                    logWhatsApp('Mensaje de prueba enviado');
-                }).catch(err => {
-                    logError('Error al enviar mensaje de prueba', err);
-                });
-            }
-        });
-
-        // Guardar credenciales
-        sock.ev.on('creds.update', saveCreds);
-
-        // Manejo de mensajes entrantes
-        sock.ev.on('messages.upsert', async m => {
-            try {
-                const msg = m.messages[0];
-                if (!msg.message) return;
-                logMessage('Mensaje recibido', { 
-                    from: msg.key.remoteJid,
-                    type: Object.keys(msg.message)[0]
-                });
-            } catch (err) {
-                logError('Error al procesar mensaje entrante', err);
-            }
-        });
-
-    } catch (error) {
-        logError('Error al inicializar Baileys', error);
-        setTimeout(() => {
-            logWhatsApp('Reintentando conexión en 5 segundos');
-            initBaileys();
-        }, 5000);
+    sock.ev.on('creds.update', saveCreds);
+    sock.ev.on('messages.upsert', async m => {
+      try {
+        const msg = m.messages[0];
+        if (!msg.message) return;
+        logMessage('Mensaje recibido', { from: msg.key.remoteJid, type: Object.keys(msg.message)[0] });
+      } catch (err) {
+        logError('Error al procesar mensaje entrante', err);
+      }
+    });
+  } catch (error) {
+    lastError = error.message;
+    logError('Error al inicializar Baileys', error);
+    reconnectAttempts++;
+    if (reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
+      logError('Máximo de intentos de reconexión alcanzado');
+      return;
     }
+    reconnectDelay = Math.min(reconnectDelay * 2, 60000);
+    setTimeout(() => initBaileys(), reconnectDelay);
+  }
 }
 
 // Ruta principal
@@ -346,113 +369,166 @@ app.get('/send', async (req, res) => {
     });
   }
 
+  function normalizarTelefono(telefono) {
+    // Si es número, conviértelo a string sin decimales ni notación científica
+    if (typeof telefono === 'number') {
+      return telefono.toFixed(0);
+    }
+    // Si es string en notación científica, conviértelo a número y luego a string
+    if (typeof telefono === 'string' && telefono.includes('E')) {
+      const num = Number(telefono);
+      if (!isNaN(num)) return num.toFixed(0);
+    }
+    // Elimina espacios, puntos y caracteres no numéricos
+    return telefono ? String(telefono).replace(/[^\d]/g, '') : '';
+  }
+
+  function validarNumero(numero) {
+    // Valida que el número tenga entre 10 y 15 dígitos y solo números
+    return typeof numero === 'string' && /^\d{10,15}$/.test(numero);
+  }
+
   try {
-    const imagePath = path.join(__dirname, '..', 'foto.png');
+    let imagePath = path.join(__dirname, '..', 'foto.png');
     if (!fs.existsSync(imagePath)) {
-      logError('Imagen no encontrada', { path: imagePath });
-      return res.status(404).json({
-        success: false,
-        error: 'Imagen no encontrada',
-        message: 'No se encontró la imagen para enviar. Verifique que el archivo foto.png exista en la carpeta del proyecto.'
-      });
+      imagePath = path.join(__dirname, '..', 'foto-ok.png');
+      if (!fs.existsSync(imagePath)) {
+        logError('Imagen no encontrada', { path: imagePath });
+        return res.status(404).json({
+          success: false,
+          error: 'Imagen no encontrada',
+          message: 'No se encontró la imagen para enviar. Verifique que el archivo foto.png o foto-ok.png exista en la carpeta del proyecto.'
+        });
+      }
     }
 
     const imageBuffer = fs.readFileSync(imagePath);
     let enviados = 0;
     let errores = 0;
 
-    console.log('\n🚀 INICIANDO ENVÍO DE MENSAJES');
-    console.log('═'.repeat(60));
-    console.log('📊 Total de contactos:', contactos.length);
-    console.log('📱 Estado WhatsApp: Conectado');
-    console.log('⏰ Hora inicio:', new Date().toLocaleTimeString('es-AR'));
-    console.log('═'.repeat(60));
-
     logMessage('Iniciando envío de mensajes', { total: contactos.length });
+
+    console.clear();
+    // Mostrar barra de progreso inicial
+    const mostrarBarraProgreso = (actual, total, contactoActual) => {
+      const porcentaje = Math.floor((actual / total) * 100);
+      const completado = Math.floor((porcentaje / 100) * 30); // 30 caracteres de ancho para la barra
+      const barra = '█'.repeat(completado) + '░'.repeat(30 - completado);
+      const resumenActual = calcularResumen(enviados, errores, contactos);
+      
+      console.clear();
+      console.log(chalk.bold('═'.repeat(50)));
+      console.log(chalk.bold('📱 ENVIANDO MENSAJES DE CUMPLEAÑOS'));
+      console.log(chalk.bold('─'.repeat(50)));
+      console.log(`${chalk.cyan('⏳')} Progreso: ${chalk.cyan(porcentaje + '%')} [${barra}] ${actual}/${total}`);
+      console.log(chalk.green(`✓ Enviados: ${enviados}`), chalk.white('|'), chalk.red(`✗ Errores: ${errores}`));
+      console.log(`${chalk.cyan('👤')} Actual: ${contactoActual ? chalk.yellow(contactoActual.nombre || 'Desconocido') : 'N/A'}`);
+      console.log(chalk.bold('═'.repeat(50)));
+    };
+    
+    // Mostrar barra inicial
+    mostrarBarraProgreso(0, contactos.length, null);
 
     for (let i = 0; i < contactos.length; i++) {
       const contacto = contactos[i];
+      // Mostrar progreso
+      mostrarBarraProgreso(i, contactos.length, contacto);
+      
       try {
+        contacto.telefono = normalizarTelefono(contacto.telefono);
         if (!contacto.telefono || !contacto.nombre || !contacto.codigo || !contacto.vencimiento) {
-          console.log(`❌ [${i + 1}/${contactos.length}] Error: Datos incompletos - ${contacto.nombre || 'Sin nombre'}`);
           logError('Datos incompletos de contacto', contacto);
+          contacto.estado = 'Error';
           errores++;
+          mostrarBarraProgreso(i + 1, contactos.length, contacto);
+          continue;
+        }
+        if (!validarNumero(contacto.telefono)) {
+          logError('Número inválido', contacto);
+          contacto.estado = 'Error';
+          errores++;
+          mostrarBarraProgreso(i + 1, contactos.length, contacto);
           continue;
         }
 
         const chatId = `${contacto.telefono}@s.whatsapp.net`;
-        // Generar mensaje usando template de configuración
         const message = config.message.template
           .replace('{nombre}', contacto.nombre)
           .replace('{codigo}', contacto.codigo)
           .replace('{vencimiento}', contacto.vencimiento);
 
-        await sock.sendMessage(chatId, {
-          image: imageBuffer,
-          caption: message
-        });
+        let enviado = false;
+        try {
+          await sock.sendMessage(chatId, { image: imageBuffer, caption: message });
+          enviado = true;
+        } catch (error) {
+          logError('Primer intento fallido, reintentando...', { contacto, error });
+          try {
+            await sock.sendMessage(chatId, { image: imageBuffer, caption: message });
+            enviado = true;
+          } catch (error2) {
+            logError('Segundo intento fallido', { contacto, error2 });
+          }
+        }
 
-        console.log(`✅ [${i + 1}/${contactos.length}] Enviado a: ${contacto.nombre} (${contacto.telefono})`);
-        
-        logMessage('Mensaje enviado', { 
-          nombre: contacto.nombre, 
-          telefono: contacto.telefono,
-          progreso: `${i + 1}/${contactos.length}`
-        });
+        if (enviado) {
+          logMessage('Mensaje enviado', { nombre: contacto.nombre, telefono: contacto.telefono, progreso: `${i + 1}/${contactos.length}` });
+          contacto.estado = 'Enviado';
+          enviados++;
+          // Actualizar barra de progreso al enviar exitosamente
+          mostrarBarraProgreso(i + 1, contactos.length, contacto);
+        } else {
+          contacto.estado = 'Error';
+          errores++;
+          // Actualizar barra de progreso también en caso de error
+          mostrarBarraProgreso(i + 1, contactos.length, contacto);
+        }
 
-        contacto.estado = 'Enviado';
-        enviados++;
-        
-        // Pausa entre mensajes para evitar spam
         if (i < contactos.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
-        
       } catch (error) {
-        console.log(`❌ [${i + 1}/${contactos.length}] Error enviando a: ${contacto.nombre} - ${error.message}`);
-        logError('Error al enviar mensaje', { 
-          error,
-          contacto: {
-            nombre: contacto.nombre,
-            telefono: contacto.telefono
-          }
-        });
+        logError('Error al enviar mensaje', { error, contacto });
         contacto.estado = 'Error';
         errores++;
+        // Actualizar barra de progreso en caso de error
+        mostrarBarraProgreso(i + 1, contactos.length, contacto);
       }
     }
 
-    console.log('\n📋 RESUMEN FINAL DEL ENVÍO');
-    console.log('═'.repeat(60));
-    console.log('✅ Mensajes enviados exitosamente:', enviados);
-    console.log('❌ Errores encontrados:', errores);
-    console.log('📊 Total procesados:', contactos.length);
-    console.log('📈 Tasa de éxito:', Math.round((enviados / contactos.length) * 100) + '%');
-    console.log('⏰ Hora finalización:', new Date().toLocaleTimeString('es-AR'));
-    console.log('═'.repeat(60));
-
-    logMessage('Envío de mensajes completado', { 
-      enviados, 
-      errores, 
-      total: contactos.length,
-      tasaExito: Math.round((enviados / contactos.length) * 100)
-    });
+    // Mostrar resumen compacto y ordenado
+    const resumen = calcularResumen(enviados, errores, contactos);
+    console.clear();
+    // Resumen completo pero compacto
+    console.log(chalk.bold('═'.repeat(50)));
+    console.log(chalk.bold('📊 RESUMEN DE ENVÍO'));
+    console.log(chalk.bold('─'.repeat(50)));
     
+    // Estado de conexión
+    console.log(
+      chalk.bold('📱 WhatsApp: ') + (isClientReady ? chalk.green('CONECTADO') : chalk.red('DESCONECTADO'))
+    );
+    
+    // Resultados del envío
+    let colorTasa = resumen.tasaExito >= 80 ? chalk.green : resumen.tasaExito >= 50 ? chalk.yellow : chalk.red;
+    console.log(
+      chalk.green('✓ ') + chalk.bold('Enviados: ') + chalk.green(resumen.enviados) + 
+      chalk.white(' | ') + 
+      chalk.red('✗ ') + chalk.bold('Errores: ') + chalk.red(resumen.errores) + 
+      chalk.white(' | ') +
+      chalk.cyan('⚡ ') + chalk.bold('Tasa: ') + colorTasa(resumen.tasaExito + '%')
+    );
+    
+    // Hora de finalización
+    console.log(chalk.bold('⏰ Finalizado: ') + chalk.cyan(new Date().toLocaleTimeString('es-AR')));
+    console.log(chalk.bold('═'.repeat(50)));
+
     res.json({
       success: true,
-      message: `Proceso completado. Mensajes enviados: ${enviados}. Errores: ${errores}.`,
-      enviados,
-      errores,
-      total: contactos.length,
-      tasaExito: Math.round((enviados / contactos.length) * 100)
+      message: `Proceso completado. Mensajes enviados: ${resumen.enviados}. Errores: ${resumen.errores}.`,
+      ...resumen
     });
   } catch (error) {
-    console.log('\n❌ ERROR GENERAL EN EL ENVÍO');
-    console.log('═'.repeat(60));
-    console.log('🔍 Error:', error.message);
-    console.log('⏰ Hora error:', new Date().toLocaleTimeString('es-AR'));
-    console.log('═'.repeat(60));
-    
     logError('Error general al enviar mensajes', error);
     res.status(500).json({
       success: false,
@@ -461,29 +537,47 @@ app.get('/send', async (req, res) => {
     });
   }
 });
+// Ruta para consultar el estado de WhatsApp
+app.get('/status', (req, res) => {
+  res.json({
+    connected: isClientReady,
+    qr: currentQR || null,
+    lastError: lastError || null,
+    reconnectAttempts
+  });
+});
 
 // Función para mostrar información del sistema al inicio
 function mostrarInfoSistema() {
   console.clear();
-  console.log('\n🏥 SANATORIO DEL OESTE - Sistema de Cumpleaños');
-  console.log('═'.repeat(60));
-  console.log('📅 Fecha:', new Date().toLocaleDateString('es-AR'));
-  console.log('⏰ Hora:', new Date().toLocaleTimeString('es-AR'));
-  console.log('🌐 Puerto:', port);
-  console.log('📁 Directorio:', __dirname);
-  console.log('═'.repeat(60));
-  console.log('🔗 URL Local: http://localhost:' + port);
-  console.log('📱 Estado WhatsApp: Conectando...');
-  console.log('═'.repeat(60));
+  console.log(chalk.bold('═'.repeat(50)));
+  console.log(chalk.bold('📱 SISTEMA DE ENVÍO DE CUMPLEAÑOS - SDO'));
+  console.log(chalk.bold('─'.repeat(50)));
+  
+  // Estado de WhatsApp
+  let estado = isClientReady ? chalk.green('✅ EN LÍNEA') : chalk.red('❌ DESCONECTADO');
+  console.log(chalk.bold('📱 Estado WhatsApp: ') + estado);
+  
+  // Servidor web
+  console.log(chalk.bold('🌐 Servidor: ') + chalk.cyan(`http://${config.server.host}:${port}`));
+  
+  // Hora actual
+  console.log(chalk.bold('⏰ Hora: ') + chalk.cyan(new Date().toLocaleTimeString('es-AR')));
+  
+  console.log(chalk.bold('═'.repeat(50)));
 }
 
 // Iniciar el servidor
 app.listen(port, () => {
   mostrarInfoSistema();
+  
+  // Iniciar Baileys sin mensajes adicionales en la consola
+  initBaileys();
+  
+  // Registrar en el log pero no en la consola
   logMessage('Sistema iniciado correctamente', { 
     puerto: port,
-    url: `http://localhost:${port}`,
+    url: `http://${config.server.host}:${port}`,
     directorio: __dirname
   });
-  initBaileys();
 });
