@@ -1,3 +1,6 @@
+const P = require('pino');
+const silentLogger = P({ level: 'silent' });
+process.env['BAILEYS_NO_LOGGING'] = 'true';
 const chalk = require('chalk');
 // Función para calcular el resumen
 function calcularResumen(enviados, errores, contactos) {
@@ -128,23 +131,45 @@ let reconnectDelay = 3000;
 async function initBaileys() {
   try {
     logWhatsApp('Iniciando conexión con WhatsApp');
+    const path = require('path');
+    const QRCode = require('qrcode');
+    const { fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+    const { version } = await fetchLatestBaileysVersion();
     const { state, saveCreds } = await useMultiFileAuthState('baileys_auth');
 
     sock = makeWASocket({
+      version,
       auth: state,
       printQRInTerminal: false,
-      syncFullHistory: false,
       browser: ['WhatsApp Bot', 'Chrome', '4.0.0'],
-      markOnlineOnConnect: true
+      markOnlineOnConnect: true,
+      syncFullHistory: false,
+      logger: silentLogger
     });
 
-    sock.ev.on('connection.update', (update) => {
+    sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
         currentQR = qr;
         logWhatsApp('Código QR generado', { timestamp: new Date().toISOString() });
+        console.clear();
+        console.log(chalk.bold.bgYellow.black('\n¡Escanea este código QR con WhatsApp!'));
         qrcode.generate(qr, { small: true });
+        // Guardar QR como imagen PNG
+        const qrPath = path.join(__dirname, '..', 'qr-code.png');
+        try {
+          await QRCode.toFile(qrPath, qr, {
+            color: { dark: '#000000', light: '#FFFFFF' },
+            width: 300
+          });
+          console.log(chalk.green(`QR guardado en archivo: ${qrPath}`));
+        } catch (qrError) {
+          console.log(chalk.red(`Error al guardar QR: ${qrError}`));
+        }
+      } else if (!isClientReady && !currentQR) {
+        // Si no hay QR y no está listo, sugerir limpiar la carpeta de autenticación
+        console.log(chalk.red('No se pudo generar el QR. Intenta limpiar la carpeta "baileys_auth" y reiniciar.'));
       }
 
       if (connection === 'close') {
@@ -410,29 +435,40 @@ app.get('/send', async (req, res) => {
 
     console.clear();
     // Mostrar barra de progreso inicial
-    const mostrarBarraProgreso = (actual, total, contactoActual) => {
+    const mostrarBarraProgreso = (actual, total, contactoActual, tiempoInicio) => {
       const porcentaje = Math.floor((actual / total) * 100);
-      const completado = Math.floor((porcentaje / 100) * 30); // 30 caracteres de ancho para la barra
-      const barra = '█'.repeat(completado) + '░'.repeat(30 - completado);
+      const completado = Math.floor((porcentaje / 100) * 40); // 40 caracteres de ancho para la barra
+      let colorBarra = chalk.green;
+      if (porcentaje < 50) colorBarra = chalk.yellow;
+      if (porcentaje < 20) colorBarra = chalk.red;
+      const barra = colorBarra('█'.repeat(completado)) + chalk.gray('░'.repeat(40 - completado));
       const resumenActual = calcularResumen(enviados, errores, contactos);
-      
-      console.clear();
-      console.log(chalk.bold('═'.repeat(50)));
-      console.log(chalk.bold('📱 ENVIANDO MENSAJES DE CUMPLEAÑOS'));
-      console.log(chalk.bold('─'.repeat(50)));
-      console.log(`${chalk.cyan('⏳')} Progreso: ${chalk.cyan(porcentaje + '%')} [${barra}] ${actual}/${total}`);
-      console.log(chalk.green(`✓ Enviados: ${enviados}`), chalk.white('|'), chalk.red(`✗ Errores: ${errores}`));
-      console.log(`${chalk.cyan('👤')} Actual: ${contactoActual ? chalk.yellow(contactoActual.nombre || 'Desconocido') : 'N/A'}`);
-      console.log(chalk.bold('═'.repeat(50)));
+
+      // Calcular tiempo estimado restante
+      let tiempoRestante = '';
+      if (tiempoInicio && actual > 0) {
+        const ahora = Date.now();
+        const tiempoTranscurrido = (ahora - tiempoInicio) / 1000; // segundos
+        const tiempoPorContacto = tiempoTranscurrido / actual;
+        const faltan = total - actual;
+        const segundosRestantes = Math.round(tiempoPorContacto * faltan);
+        const minutos = Math.floor(segundosRestantes / 60);
+        const segundos = segundosRestantes % 60;
+        tiempoRestante = ` | ⏳ Estimado: ${minutos}m ${segundos}s`;
+      }
+
+      // Imprimir barra en una sola línea, sobrescribiendo la anterior
+      process.stdout.write(`\r${chalk.bold('📱')} ${chalk.cyan('Progreso:')} ${chalk.cyan(porcentaje + '%')} [${barra}] ${actual}/${total}${tiempoRestante} ${chalk.green('✓ ' + enviados)}${chalk.white(' | ')}${chalk.red('✗ ' + errores)} ${chalk.cyan('👤')} ${contactoActual ? chalk.yellow(contactoActual.nombre || 'Desconocido') : 'N/A'}   `);
     };
     
     // Mostrar barra inicial
-    mostrarBarraProgreso(0, contactos.length, null);
+  const tiempoInicio = Date.now();
+  mostrarBarraProgreso(0, contactos.length, null, tiempoInicio);
 
     for (let i = 0; i < contactos.length; i++) {
-      const contacto = contactos[i];
-      // Mostrar progreso
-      mostrarBarraProgreso(i, contactos.length, contacto);
+  const contacto = contactos[i];
+  // Mostrar progreso
+  mostrarBarraProgreso(i, contactos.length, contacto, tiempoInicio);
       
       try {
         contacto.telefono = normalizarTelefono(contacto.telefono);
@@ -476,12 +512,12 @@ app.get('/send', async (req, res) => {
           contacto.estado = 'Enviado';
           enviados++;
           // Actualizar barra de progreso al enviar exitosamente
-          mostrarBarraProgreso(i + 1, contactos.length, contacto);
+          mostrarBarraProgreso(i + 1, contactos.length, contacto, tiempoInicio);
         } else {
           contacto.estado = 'Error';
           errores++;
           // Actualizar barra de progreso también en caso de error
-          mostrarBarraProgreso(i + 1, contactos.length, contacto);
+          mostrarBarraProgreso(i + 1, contactos.length, contacto, tiempoInicio);
         }
 
         if (i < contactos.length - 1) {
@@ -492,7 +528,7 @@ app.get('/send', async (req, res) => {
         contacto.estado = 'Error';
         errores++;
         // Actualizar barra de progreso en caso de error
-        mostrarBarraProgreso(i + 1, contactos.length, contacto);
+  mostrarBarraProgreso(i + 1, contactos.length, contacto, tiempoInicio);
       }
     }
 

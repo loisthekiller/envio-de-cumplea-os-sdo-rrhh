@@ -32,13 +32,25 @@ const consoleFormat = winston.format.printf(({ level, message, category, timesta
   
   const icon = categoryIcons[category] || typeIcons[level] || '📋';
   
-  let output = `\n${icon} [${time}] ${level.toUpperCase()}: ${message}`;
-  
-  if (Object.keys(meta).length > 0) {
-    output += `\n   Datos: ${JSON.stringify(meta, null, 2)}`;
-  }
-  
-  return output;
+    // Resumir datos: solo mostrar lo esencial
+    let output = `\n${icon} [${time}] ${level.toUpperCase()}: ${message}`;
+    if (meta) {
+        // Mostrar solo campos clave
+        const resumen = {};
+        if (meta.puerto || meta.port) resumen.puerto = meta.puerto || meta.port;
+        if (meta.url) resumen.url = meta.url;
+        if (meta.from) resumen.from = meta.from;
+        if (meta.type) resumen.type = meta.type;
+        if (meta.cantidad) resumen.cantidad = meta.cantidad;
+        if (meta.error) resumen.error = meta.error;
+        if (meta.success !== undefined) resumen.success = meta.success;
+        if (meta.mensaje) resumen.mensaje = meta.mensaje;
+        // Mostrar solo si hay datos relevantes
+        if (Object.keys(resumen).length > 0) {
+            output += `\n   Datos: ${JSON.stringify(resumen)}`;
+        }
+    }
+    return output;
 });
 
 // Configuración del logger

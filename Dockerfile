@@ -1,10 +1,9 @@
 # Etapa 1: Dependencias (usar Node 20 por requisitos de algunas libs)
 FROM node:20-alpine AS deps
 WORKDIR /app
-# Copiar manifests (lock puede no existir en algunos casos)
 COPY package.json ./
 COPY package-lock.json* ./
-# Intentar instalación limpia; si el lock no coincide o falta, usar npm install como fallback
+# Instalar dependencias principales y asegurar pino/qrcode
 RUN set -eux; \
     if [ -f package-lock.json ]; then \
       echo "Usando npm ci"; \
@@ -12,7 +11,8 @@ RUN set -eux; \
     else \
       echo "No hay package-lock.json, usando npm install"; \
       npm install --omit=dev; \
-    fi;
+    fi; \
+    npm install pino qrcode --save;
 
 # Etapa 2: Runtime minimal
 FROM node:20-alpine
