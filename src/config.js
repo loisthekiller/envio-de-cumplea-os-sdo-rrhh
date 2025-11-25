@@ -6,13 +6,13 @@ module.exports = {
     host: process.env.HOST || 'localhost'
   },
 
-  // Configuración de WhatsApp
+  // Configuración de WhatsApp Business Cloud API
   whatsapp: {
-    browser: ['Sanatorio del Oeste Bot', 'Chrome', '4.0.0'],
-    printQRInTerminal: true,
-    syncFullHistory: false,
-    markOnlineOnConnect: true,
-    retryDelay: 3000 // milisegundos
+    token: process.env.WHATSAPP_TOKEN || '',
+    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || '',
+    apiVersion: process.env.WHATSAPP_API_VERSION || 'v18.0',
+    businessAccountId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || '',
+    webhookVerifyToken: process.env.WEBHOOK_VERIFY_TOKEN || 'sanatorio_oeste_webhook_2024'
   },
 
   // Configuración de archivos
@@ -39,7 +39,11 @@ module.exports = {
   message: {
     template: '🎉 ¡Buenos días, {nombre}!\n\nDesde el Sanatorio del Oeste 🏥 queremos desearte un muy feliz cumpleaños 🎉💐.\n\nPara celebrar tu mes especial, te enviamos dos obsequios exclusivos:\n\n🎬 Voucher para el cine Hoyts ({codigo}) – recordá revisar la fecha de vencimiento ({vencimiento}) y el modo de canje.\n\n💆🏻 Voucher para una limpieza facial, para que disfrutes un momento de relajación y cuidado personal.\n\n¡Esperamos que los disfrutes y tengas un cumpleaños inolvidable!\n\nAtte: Recursos Humanos',
     delayBetweenMessages: 2000, // milisegundos
-    maxRetries: 3
+    maxRetries: 3,
+    // Configuración de plantilla de Meta
+    useMetaTemplate: true, // Cambiar a false para usar mensajes libres
+    metaTemplateName: 'cumple_saludo_voucher',
+    metaTemplateLanguage: 'es_AR'
   },
 
   // Configuración de Excel

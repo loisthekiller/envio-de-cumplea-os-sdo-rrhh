@@ -1,0 +1,64 @@
+version: '3.8'
+
+# ============================================
+# Docker Compose - Entorno de PREPRODUCCIÓN
+# ============================================
+
+services:
+  api:
+    container_name: cumple-api-pre
+    build:
+      context: ../..
+      dockerfile: docker/images/Dockerfile
+    image: sanatorio-cumpleanos-api:pre
+    restart: always
+
+    # Variables de entorno desde archivo
+    env_file:
+      - ../../.env
+
+    # Variables específicas de preproducción
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      TZ: America/Argentina/Buenos_Aires
+
+    # Puertos expuestos
+    ports:
+      - "3000:3000"
+
+    # Healthcheck
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:3000/status" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+    # Límites de recursos (preproducción)
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '1.5'
+        reservations:
+          memory: 384M
+          cpus: '0.75'
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Redes
+    networks:
+      - cumple-network
+
+# Redes
+networks:
+  cumple-network:
+    driver: bridge
+    name: cumple-pre-network

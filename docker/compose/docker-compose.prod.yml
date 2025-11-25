@@ -1,0 +1,79 @@
+version: '3.8'
+
+# ============================================
+# Docker Compose - Entorno de PRODUCCIÓN
+# ============================================
+
+services:
+  api:
+    container_name: cumple-api-prod
+    build:
+      context: ../..
+      dockerfile: docker/images/Dockerfile
+    image: sanatorio-cumpleanos-api:prod
+    restart: always
+
+    # Variables de entorno desde archivo
+    env_file:
+      - ../../.env
+
+    # Variables específicas de producción
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      TZ: America/Argentina/Buenos_Aires
+
+    # Puertos expuestos
+    ports:
+      - "3000:3000"
+
+    # Healthcheck
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:3000/status" ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    # Límites de recursos (producción)
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '2.0'
+        reservations:
+          memory: 512M
+          cpus: '1.0'
+
+      # Política de reinicio
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+    # Logging optimizado para producción
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+        compress: "true"
+
+    # Seguridad adicional
+    security_opt:
+      - no-new-privileges:true
+
+    # Redes
+    networks:
+      - cumple-network
+
+# Redes
+networks:
+  cumple-network:
+    driver: bridge
+    name: cumple-prod-network
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
